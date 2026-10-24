@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block title %}Synthetic Patients - Healthcare Analytics{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
+    <div>
+        <h4 class="fw-bold mb-1 text-navy"><i class="bi bi-people me-2 text-primary"></i>Synthetic Patient Records</h4>
+        <div class="text-muted small">De-identified demographic profiles and cohort filters. Educational analytics only.</div>
+    </div>
+    <div>
+        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#newPatientModal">
+            <i class="bi bi-person-plus me-1"></i> Register Synthetic Patient
+        </button>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-3 p-3 bg-white">
+    <form method="GET" action="{{ url_for('patients_view') }}" class="row g-2 align-items-center">
+        <div class="col-md-3">
+            <input type="text" name="search" class="form-control form-control-sm" placeholder="Search by Patient ID (e.g. PAT-SYN-0012)" value="{{ search_term }}">
+        </div>
+        <div class="col-md-3">
+            <select name="age_band" class="form-select form-select-sm">
+                <option value="">All Age Bands</option>
+                {% for b in ["0-17", "18-35", "36-50", "51-65", "66-80", "80+"] %}
+                    <option value="{{ b }}" {% if selected_age == b %}selected{% endif %}>Age: {{ b }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select name="chronic" class="form-select form-select-sm">
+                <option value="">Chronic Condition: Any</option>
+                <option value="true" {% if selected_chronic == 'true' %}selected{% endif %}>Chronic Flag: Yes</option>
+                <option value="false" {% if selected_chronic == 'false' %}selected{% endif %}>Chronic Flag: No</option>
+            </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-sm btn-secondary flex-grow-1"><i class="bi bi-funnel me-1"></i> Filter</button>
+            <a href="{{ url_for('patients_view') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+        </div>
+    </form>
+</div>
+
+<!-- Patients Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center py-2">
+        <span class="small fw-semibold text-muted">Showing {{ total_displayed }} Synthetic Cohort Records</span>
+        <span class="badge bg-light text-dark border">REST: /api/v1/patients</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Patient ID</th>
+                    <th>Age Band</th>
+                    <th>Gender</th>
+                    <th>Ethnicity Code</th>
+                    <th>Region Zone</th>
+                    <th>Chronic Flag</th>
+                    <th>Visits</th>
+                    <th>Active Risk Indicators</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in patients %}
+                    <tr>
+                        <td>
+                            <strong class="text-primary font-monospace">{{ p.patient_id }}</strong>
+                        </td>
+                        <td><span class="badge bg-secondary-subtle text-secondary">{{ p.age_band }}</span></td>
+                        <td>{{ p.gender }}</td>
+                        <td><code>{{ p.ethnicity_code }}</code></td>
+                        <td>{{ p.residence_region }}</td>
+                        <td>
+                            {% if p.chronic_condition_flag %}
+                                <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>Yes</span>
+                            {% else %}
+                                <span class="badge bg-light text-muted border">No</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge bg-primary-subtle text-primary">{{ p.visits_count }}</span></td>
+                        <td>
+                            {% if p.active_risk_indicators >= 2 %}
+                                <span class="badge bg-danger"><i class="bi bi-shield-alert me-1"></i>{{ p.active_risk_indicators }} Multi-Watch</span>
+                            {% elif p.active_risk_indicators == 1 %}
+                                <span class="badge bg-warning text-dark">{{ p.active_risk_indicators }} Active</span>
+                            {% else %}
+                                <span class="badge bg-success-subtle text-success">0 Flags</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-primary py-0 px-2" onclick="inspectPatient('{{ p.patient_id }}')">
+                                <i class="bi bi-eye"></i> View Profile
+                            </button>
+                            <button class="btn btn-sm btn-outline-warning py-0 px-2" onclick="triggerPatientEvaluation('{{ p.patient_id }}')" title="Re-evaluate rule-based indicators">
+                                <i class="bi bi-arrow-repeat"></i> Evaluate
+                            </button>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">No synthetic patient records found matching criteria.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal: New Synthetic Patient -->
+<div class="modal fade" id="newPatientModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-navy text-white">
+                <h6 class="modal-title"><i class="bi bi-person-plus me-2"></i>Register Synthetic Patient</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="newPatientForm" onsubmit="submitNewPatient(event)">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Patient ID (Auto-generated if empty)</label>
+                        <input type="text" id="pat_id_input" class="form-control form-control-sm" placeholder="e.g. PAT-SYN-9999">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Age Band *</label>
+                        <select id="pat_age_input" class="form-select form-select-sm" required>
+                            <option value="0-17">0-17</option>
+                            <option value="18-35">18-35</option>
+                            <option value="36-50" selected>36-50</option>
+                            <option value="51-65">51-65</option>
+                            <option value="66-80">66-80</option>
+                            <option value="80+">80+</option>
+                        </select>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Gender</label>
+                            <select id="pat_gender_input" class="form-select form-select-sm">
+                                <option value="Female">Female</option>
+                                <option value="Male">Male</option>
+                                <option value="Non-Binary">Non-Binary</option>
+                                <option value="Undisclosed">Undisclosed</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold">Ethnicity Code</label>
+                            <select id="pat_eth_input" class="form-select form-select-sm">
+                                <option value="ETH_A1">ETH_A1</option>
+                                <option value="ETH_B2">ETH_B2</option>
+                                <option value="ETH_C3">ETH_C3</option>
+                                <option value="ETH_D4">ETH_D4</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Residence Region</label>
+                        <select id="pat_region_input" class="form-select form-select-sm">
+                            <option value="Metro-North">Metro-North</option>
+                            <option value="Urban-Central" selected>Urban-Central</option>
+                            <option value="Suburban-East">Suburban-East</option>
+                            <option value="Rural-West">Rural-West</option>
+                        </select>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="pat_chronic_input">
+                        <label class="form-check-label small" for="pat_chronic_input">
+                            Chronic Condition Baseline Flag
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary">Create Synthetic Record</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Inspect Patient Profile -->
+<div class="modal fade" id="inspectPatientModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-navy text-white">
+                <h6 class="modal-title" id="inspectModalTitle"><i class="bi bi-person-vcard me-2"></i>Patient Profile</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="inspectModalBody">
+                <div class="text-center py-4 text-muted"><i class="bi bi-arrow-repeat spin"></i> Loading details...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function inspectPatient(patientId) {
+    const modal = new bootstrap.Modal(document.getElementById('inspectPatientModal'));
+    document.getElementById('inspectModalTitle').innerText = `Synthetic Patient Profile: ${patientId}`;
+    const body = document.getElementById('inspectModalBody');
+    body.innerHTML = `<div class="text-center py-4 text-muted"><i class="bi bi-arrow-repeat spin"></i> Loading...</div>`;
+    modal.show();
+
+    try {
+        const res = await fetch(`/api/v1/patients/${patientId}`, {
+            headers: { "X-API-Key": "health-demo-key-2026" }
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            body.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+            return;
+        }
+
+        const p = data.patient;
+        let indList = data.risk_indicators.map(i => `
+            <li class="list-group-item d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="badge bg-dark me-1">${i.rule_code}</span>
+                    <span class="fw-semibold small">${i.indicator_category}</span>
+                    <div class="small text-muted">${i.rationale}</div>
+                </div>
+                <span class="badge bg-warning text-dark">Val: ${i.indicator_value}</span>
+            </li>
+        `).join('') || '<div class="text-muted small p-2">No active risk indicators triggered.</div>';
+
+        let measRows = data.measurements.slice(0, 10).map(m => `
+            <tr>
+                <td><code>${m.measure_type}</code></td>
+                <td><strong>${m.value}</strong> ${m.unit}</td>
+                <td><span class="badge ${m.is_valid_range ? 'bg-success' : 'bg-danger'}">${m.validation_status}</span></td>
+                <td class="small text-muted">${m.measurement_date.slice(0, 16)}</td>
+            </tr>
+        `).join('') || '<tr><td colspan="4" class="text-muted text-center">No measurements recorded.</td></tr>';
+
+        body.innerHTML = `
+            <div class="row g-3 mb-3">
+                <div class="col-md-3"><strong>Age Band:</strong> ${p.age_band}</div>
+                <div class="col-md-3"><strong>Gender:</strong> ${p.gender}</div>
+                <div class="col-md-3"><strong>Ethnicity:</strong> ${p.ethnicity_code}</div>
+                <div class="col-md-3"><strong>Chronic:</strong> ${p.chronic_condition_flag ? 'Yes' : 'No'}</div>
+            </div>
+            <div class="mb-3">
+                <h6 class="fw-bold text-dark border-bottom pb-1"><i class="bi bi-shield-alert text-warning me-1"></i> Active Risk Indicators</h6>
+                <ul class="list-group">${indList}</ul>
+            </div>
+            <div>
+                <h6 class="fw-bold text-dark border-bottom pb-1"><i class="bi bi-activity text-info me-1"></i> Recent Recorded Measurements</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead><tr><th>Type</th><th>Value</th><th>Status</th><th>Date</th></tr></thead>
+                        <tbody>${measRows}</tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    } catch (err) {
+        body.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    }
+}
+
+async function submitNewPatient(event) {
+    event.preventDefault();
+    const pid = document.getElementById('pat_id_input').value.trim();
+    const age = document.getElementById('pat_age_input').value;
+    const gender = document.getElementById('pat_gender_input').value;
+    const eth = document.getElementById('pat_eth_input').value;
+    const reg = document.getElementById('pat_region_input').value;
+    const chronic = document.getElementById('pat_chronic_input').checked;
+
+    try {
+        const res = await fetch('/api/v1/patients', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': 'health-demo-key-2026'
+            },
+            body: JSON.stringify({
+                patient_id: pid || undefined,
+                age_band: age,
+                gender: gender,
+                ethnicity_code: eth,
+                residence_region: reg,
+                chronic_condition_flag: chronic
+            })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+            alert(`Patient ${data.data.patient_id} created successfully!`);
+            window.location.reload();
+        } else {
+            alert("Error creating patient: " + data.error);
+        }
+    } catch (err) {
+        alert("Request error: " + err.message);
+    }
+}
+</script>
+{% endblock %}

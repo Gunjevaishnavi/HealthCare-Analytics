@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}Health Measurements & Range Validation - Healthcare Analytics{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
+    <div>
+        <h4 class="fw-bold mb-1 text-navy"><i class="bi bi-activity me-2 text-primary"></i>Health Measurements & Range Validation Engine</h4>
+        <div class="text-muted small">Validating vital signs and biomarkers against documented physiological sample assumptions.</div>
+    </div>
+    <div>
+        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#newMeasurementModal">
+            <i class="bi bi-plus-circle me-1"></i> Record Health Measurement
+        </button>
+    </div>
+</div>
+
+<!-- Interactive Range Validator Sandbox -->
+<div class="card mb-4 shadow-sm border-primary">
+    <div class="card-header bg-navy text-white d-flex justify-content-between align-items-center py-2">
+        <span class="fw-bold small"><i class="bi bi-sliders me-1"></i> Interactive Physiological Range Validator (Ad-hoc Simulation)</span>
+        <span class="badge bg-warning text-dark small">Documented Sample Assumptions</span>
+    </div>
+    <div class="card-body p-3">
+        <form onsubmit="testRangeValidation(event)" class="row g-2 align-items-end mb-3">
+            <div class="col-md-5">
+                <label class="form-label small fw-semibold">Select Physiological Measure Type</label>
+                <select id="val_measure_type" class="form-select form-select-sm">
+                    {% for m_key, spec in specs.items() %}
+                        <option value="{{ m_key }}">{{ spec.display_name }} ({{ spec.unit }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small fw-semibold">Enter Value to Validate</label>
+                <input type="number" step="0.1" id="val_value" class="form-control form-control-sm" placeholder="e.g. 145 or 280" value="145" required>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-sm btn-cyan w-100">
+                    <i class="bi bi-check2-circle me-1"></i> Evaluate Range & Plausibility
+                </button>
+            </div>
+        </form>
+        <div id="validation_result_box">
+            <div class="text-muted small">
+                <i class="bi bi-info-circle me-1"></i> Test any measurement above to see physiological bounds, standard reference intervals, and plausibility flags.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Documented Physiological Assumptions Table -->
+<div class="card mb-4">
+    <div class="card-header bg-white py-2">
+        <span class="fw-bold small text-uppercase text-muted"><i class="bi bi-journal-medical me-1 text-primary"></i> Documented Physiological Sample Assumptions</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm table-bordered align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Measure Type</th>
+                    <th>Unit</th>
+                    <th>Standard Reference Interval</th>
+                    <th>Biological Plausible Limit</th>
+                    <th>Documented Sample Assumption Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for k, spec in specs.items() %}
+                    <tr>
+                        <td><strong>{{ spec.display_name }}</strong> <code class="small text-muted">({{ k }})</code></td>
+                        <td><span class="badge bg-secondary-subtle text-secondary">{{ spec.unit }}</span></td>
+                        <td><span class="badge bg-success-subtle text-success">{{ spec.normal_min }} - {{ spec.normal_max }} {{ spec.unit }}</span></td>
+                        <td><span class="badge bg-light text-dark border">[{{ spec.plausible_min }}, {{ spec.plausible_max }}]</span></td>
+                        <td class="small text-muted">{{ spec.assumption_notes }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Filters for Recorded Measurements -->
+<div class="card mb-3 p-3 bg-white">
+    <form method="GET" action="{{ url_for('measurements_view') }}" class="row g-2 align-items-center">
+        <div class="col-md-4">
+            <select name="measure_type" class="form-select form-select-sm">
+                <option value="">All Measurement Types</option>
+                {% for k, spec in specs.items() %}
+                    <option value="{{ k }}" {% if selected_type == k %}selected{% endif %}>{{ spec.display_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <select name="status" class="form-select form-select-sm">
+                <option value="">All Validation Statuses</option>
+                <option value="VALID" {% if selected_status == 'VALID' %}selected{% endif %}>VALID (Normal Interval)</option>
+                <option value="OUT_OF_RANGE_HIGH" {% if selected_status == 'OUT_OF_RANGE_HIGH' %}selected{% endif %}>OUT_OF_RANGE_HIGH</option>
+                <option value="OUT_OF_RANGE_LOW" {% if selected_status == 'OUT_OF_RANGE_LOW' %}selected{% endif %}>OUT_OF_RANGE_LOW</option>
+                <option value="IMPLAUSIBLE_VALUE" {% if selected_status == 'IMPLAUSIBLE_VALUE' %}selected{% endif %}>IMPLAUSIBLE_VALUE</option>
+            </select>
+        </div>
+        <div class="col-md-4 d-flex gap-2">
+            <button type="submit" class="btn btn-sm btn-secondary flex-grow-1"><i class="bi bi-funnel me-1"></i> Filter</button>
+            <a href="{{ url_for('measurements_view') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+        </div>
+    </form>
+</div>
+
+<!-- Recorded Measurements Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center py-2">
+        <span class="small fw-semibold text-muted">Showing Recent Synthetic Measurement Records</span>
+        <span class="badge bg-light text-dark border">REST: /api/v1/measurements</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Measurement ID</th>
+                    <th>Patient ID</th>
+                    <th>Parameter</th>
+                    <th>Value Recorded</th>
+                    <th>Plausibility</th>
+                    <th>Validation Status</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in measurements %}
+                    <tr>
+                        <td><code class="small">{{ m.measurement_id }}</code></td>
+                        <td>
+                            <a href="{{ url_for('patients_view', search=m.patient_id) }}" class="fw-semibold text-decoration-none">
+                                {{ m.patient_id }}
+                            </a>
+                        </td>
+                        <td><code>{{ m.measure_type }}</code></td>
+                        <td><strong class="fs-6">{{ m.value }}</strong> <span class="text-muted small">{{ m.unit }}</span></td>
+                        <td>
+                            {% if m.is_valid_range %}
+                                <span class="badge bg-success-subtle text-success"><i class="bi bi-check me-1"></i>Plausible</span>
+                            {% else %}
+                                <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Implausible</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if m.validation_status == 'VALID' %}
+                                <span class="badge badge-valid"><i class="bi bi-check-circle me-1"></i>VALID</span>
+                            {% elif m.validation_status == 'OUT_OF_RANGE_HIGH' %}
+                                <span class="badge badge-high"><i class="bi bi-arrow-up-circle me-1"></i>OUT_OF_RANGE_HIGH</span>
+                            {% elif m.validation_status == 'OUT_OF_RANGE_LOW' %}
+                                <span class="badge badge-low"><i class="bi bi-arrow-down-circle me-1"></i>OUT_OF_RANGE_LOW</span>
+                            {% elif m.validation_status == 'IMPLAUSIBLE_VALUE' %}
+                                <span class="badge badge-implausible"><i class="bi bi-exclamation-octagon me-1"></i>IMPLAUSIBLE</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ m.validation_status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="small text-muted">{{ m.measurement_date }}</td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">No measurements found matching filter.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal: New Measurement -->
+<div class="modal fade" id="newMeasurementModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-navy text-white">
+                <h6 class="modal-title"><i class="bi bi-activity me-2"></i>Record New Health Measurement</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form onsubmit="submitNewMeasurement(event)">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Patient ID *</label>
+                        <input type="text" id="meas_pat_id" class="form-control form-control-sm" placeholder="e.g. PAT-SYN-0001" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Parameter / Measure Type *</label>
+                        <select id="meas_type_input" class="form-select form-select-sm" required>
+                            {% for k, spec in specs.items() %}
+                                <option value="{{ k }}">{{ spec.display_name }} ({{ spec.unit }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Value *</label>
+                        <input type="number" step="0.1" id="meas_value_input" class="form-control form-control-sm" placeholder="e.g. 138" required>
+                    </div>
+                    <div class="alert alert-info py-2 small mb-0">
+                        <i class="bi bi-info-circle me-1"></i> Recording a new measurement automatically evaluates physiological range and updates active risk indicators for the patient!
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary">Submit & Validate</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function submitNewMeasurement(event) {
+    event.preventDefault();
+    const pid = document.getElementById('meas_pat_id').value.trim();
+    const type = document.getElementById('meas_type_input').value;
+    const val = parseFloat(document.getElementById('meas_value_input').value);
+
+    try {
+        const res = await fetch('/api/v1/measurements', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': 'health-demo-key-2026'
+            },
+            body: JSON.stringify({
+                patient_id: pid,
+                measure_type: type,
+                value: val
+            })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+            alert(`Measurement saved!\nValidation: ${data.validation.status}\nExplanation: ${data.validation.explanation}\nPatient active risk indicators updated.`);
+            window.location.reload();
+        } else {
+            alert("Error: " + data.error);
+        }
+    } catch (err) {
+        alert("Failed to submit measurement: " + err.message);
+    }
+}
+</script>
+{% endblock %}

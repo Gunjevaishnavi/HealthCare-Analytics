@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}REST API Documentation - Healthcare Analytics{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
+    <div>
+        <h4 class="fw-bold mb-1 text-navy"><i class="bi bi-code-slash me-2 text-primary"></i>REST API Specifications & Interactive Sandbox</h4>
+        <div class="text-muted small">Programmatic interfaces for synthetic patient records, visits, measurements, and indicators.</div>
+    </div>
+    <div>
+        <span class="badge bg-warning text-dark py-2 px-3">
+            <i class="bi bi-key me-1"></i> Header Required: <code>X-API-Key: health-demo-key-2026</code>
+        </span>
+    </div>
+</div>
+
+<!-- Interactive API Tester Sandbox -->
+<div class="card mb-4 border-primary shadow-sm">
+    <div class="card-header bg-navy text-white d-flex justify-content-between align-items-center py-2">
+        <span class="fw-bold small"><i class="bi bi-terminal me-1"></i> Interactive API Explorer / Tester</span>
+        <span class="badge bg-info text-dark">Live Console</span>
+    </div>
+    <div class="card-body p-3">
+        <div class="row g-2 align-items-center mb-3">
+            <div class="col-md-2">
+                <select id="api_method" class="form-select form-select-sm fw-bold">
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                </select>
+            </div>
+            <div class="col-md-8">
+                <select id="api_preset_endpoint" class="form-select form-select-sm" onchange="loadPresetEndpoint()">
+                    <option value="/api/v1/patients?limit=5">GET /api/v1/patients?limit=5 (List synthetic patients)</option>
+                    <option value="/api/v1/patients/PAT-SYN-0001">GET /api/v1/patients/PAT-SYN-0001 (Patient details)</option>
+                    <option value="/api/v1/visits?limit=5">GET /api/v1/visits?limit=5 (List clinical visits)</option>
+                    <option value="/api/v1/measurements?limit=5">GET /api/v1/measurements?limit=5 (List health measurements)</option>
+                    <option value="/api/v1/indicators?limit=5">GET /api/v1/indicators?limit=5 (List risk indicators)</option>
+                    <option value="/api/v1/indicators/rules">GET /api/v1/indicators/rules (Documented rule specs)</option>
+                    <option value="/api/v1/analytics/operational-summary">GET /api/v1/analytics/operational-summary (Operational summary)</option>
+                    <option value="/api/v1/analytics/department-trends">GET /api/v1/analytics/department-trends (Department trends)</option>
+                    <option value="/api/v1/analytics/measurement-stats">GET /api/v1/analytics/measurement-stats (NumPy statistical summaries)</option>
+                    <option value="/api/v1/analytics/indicator-distribution">GET /api/v1/analytics/indicator-distribution (Indicator distribution)</option>
+                    <option value="/api/v1/ml/educational-evaluation">GET /api/v1/ml/educational-evaluation (Educational ML metrics)</option>
+                    <option value="/api/v1/measurements/validate">POST /api/v1/measurements/validate (Ad-hoc physiological range validator)</option>
+                    <option value="/api/v1/indicators/evaluate/PAT-SYN-0001">POST /api/v1/indicators/evaluate/PAT-SYN-0001 (On-demand patient evaluation)</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-sm btn-primary w-100" onclick="executeApiTest()">
+                    <i class="bi bi-play-fill me-1"></i> Send Request
+                </button>
+            </div>
+        </div>
+
+        <div class="row g-2 mb-2">
+            <div class="col-md-6">
+                <label class="form-label small fw-semibold text-muted mb-1">API Key Header (<code>X-API-Key</code>)</label>
+                <input type="text" id="api_key_field" class="form-control form-control-sm font-monospace" value="health-demo-key-2026">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label small fw-semibold text-muted mb-1">Exact Request Path</label>
+                <input type="text" id="api_path_input" class="form-control form-control-sm font-monospace" value="/api/v1/patients?limit=5">
+            </div>
+        </div>
+
+        <div id="request_body_container" class="mb-2 d-none">
+            <label class="form-label small fw-semibold text-muted mb-1">JSON Request Body (POST)</label>
+            <textarea id="api_body_input" class="form-control form-control-sm font-monospace" rows="3">{"measure_type": "systolic_bp", "value": 148.0}</textarea>
+        </div>
+
+        <div class="mt-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small fw-semibold text-muted">Response Payload</span>
+                <span id="response_status_badge" class="badge bg-secondary">Awaiting execution...</span>
+            </div>
+            <pre class="bg-dark text-light p-3 rounded mb-0" style="max-height: 280px; overflow-y: auto;"><code id="api_response_code">// Response JSON will appear here...</code></pre>
+        </div>
+    </div>
+</div>
+
+<!-- API Reference Tables & cURL Examples -->
+<div class="card mb-4">
+    <div class="card-header bg-white py-3">
+        <h6 class="fw-bold mb-0 text-navy"><i class="bi bi-journal-code me-2 text-primary"></i>REST API Endpoints Reference</h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>HTTP Method</th>
+                        <th>Endpoint Path</th>
+                        <th>Description</th>
+                        <th>Authentication</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="badge bg-success">GET</span></td>
+                        <td><code>/api/v1/patients</code></td>
+                        <td>Lists synthetic patients with optional filters (<code>age_band</code>, <code>gender</code>, <code>chronic</code>, <code>limit</code>, <code>offset</code>).</td>
+                        <td><span class="badge bg-warning text-dark">API Key</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge bg-primary">POST</span></td>
+                        <td><code>/api/v1/patients</code></td>
+                        <td>Registers a new synthetic patient record.</td>
+                        <td><span class="badge bg-warning text-dark">API Key</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge bg-success">GET</span></td>
+                        <td><code>/api/v1/patients/{patient_id}</code></td>
+                        <td>Retrieves detailed patient profile, complete visit history, measurements, and active indicators.</td>
+                        <td><span class="badge bg-warning text-dark">API Key</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge bg-success">GET</span></td>
+                        <td><code>/api/v1/visits</code></td>
+                        <td>Lists clinical visits with department and admission type filters.</td>
+                        <td><span class="badge bg-warning text-dark">API Key</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge bg-primary">POST</span></td>
+                        <td><code>/api/v1/visits</code></td>
+                        <td>Records a new patient visit/encounter.</td>
+                        <td><span class="badge bg-warning text-dark">API Key</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge bg-success">GET</span></td>
+                        <td><code>/api/v1/measurements</code></td>
+                        <td>Queries health measurements with validation status filtering.</td>
+                        <td><span class="badge bg-warning text-dark">API Key</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge bg-primary">POST</span></td>
+                        <td><code>/api/v1/measurements</code></td>
+                        <td>Submits a new health measurement; automatically executes range validation and updates patient indicators.</td>
+                        <td><span class="badge bg-warning text-dark">API Key</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge bg-primary">POST</span></td>
+                        <td><code>/api/v1/measurements/validate</code></td>
+                        <td>Validates arbitrary measurement values against documented physiological assumptions without saving.</td>
+                        <td><span class="badge bg-secondary">Public</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge bg-success">GET</span></td>
+                        <td><code>/api/v1/indicators</code></td>
+                        <td>Returns computed risk indicators with rule documentation and limitations statement.</td>
+                        <td><span class="badge bg-warning text-dark">API Key</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge bg-success">GET</span></td>
+                        <td><code>/api/v1/indicators/rules</code></td>
+                        <td>Retrieves documented definitions, cutoffs, and educational rationale for all indicator rules.</td>
+                        <td><span class="badge bg-secondary">Public</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge bg-primary">POST</span></td>
+                        <td><code>/api/v1/indicators/evaluate/{patient_id}</code></td>
+                        <td>Re-evaluates transparent rules on latest patient measurements and updates stored flags.</td>
+                        <td><span class="badge bg-warning text-dark">API Key</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge bg-success">GET</span></td>
+                        <td><code>/api/v1/analytics/operational-summary</code></td>
+                        <td>Delivers full operational report (demographics, department throughput, NumPy summaries).</td>
+                        <td><span class="badge bg-warning text-dark">API Key</span></td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge bg-success">GET</span></td>
+                        <td><code>/api/v1/ml/educational-evaluation</code></td>
+                        <td>Executes and returns Scikit-Learn educational experiment metrics and confusion matrices.</td>
+                        <td><span class="badge bg-warning text-dark">API Key</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function loadPresetEndpoint() {
+    const sel = document.getElementById("api_preset_endpoint");
+    const val = sel.value;
+    document.getElementById("api_path_input").value = val;
+
+    const methodSel = document.getElementById("api_method");
+    const bodyBox = document.getElementById("request_body_container");
+    const bodyInput = document.getElementById("api_body_input");
+
+    if (val.startsWith("/api/v1/measurements/validate")) {
+        methodSel.value = "POST";
+        bodyBox.classList.remove("d-none");
+        bodyInput.value = JSON.stringify({"measure_type": "systolic_bp", "value": 152.0}, null, 2);
+    } else if (val.includes("/evaluate/")) {
+        methodSel.value = "POST";
+        bodyBox.classList.add("d-none");
+    } else {
+        methodSel.value = "GET";
+        bodyBox.classList.add("d-none");
+    }
+}
+
+async function executeApiTest() {
+    const method = document.getElementById("api_method").value;
+    const path = document.getElementById("api_path_input").value;
+    const apiKey = document.getElementById("api_key_field").value.trim();
+    const statusBadge = document.getElementById("response_status_badge");
+    const codeArea = document.getElementById("api_response_code");
+    const bodyBox = document.getElementById("request_body_container");
+    const bodyInput = document.getElementById("api_body_input");
+
+    statusBadge.className = "badge bg-info text-dark";
+    statusBadge.innerText = "Executing...";
+    codeArea.innerText = "// Loading response...";
+
+    const headers = { "Content-Type": "application/json" };
+    if (apiKey) headers["X-API-Key"] = apiKey;
+
+    const options = { method: method, headers: headers };
+    if (method === "POST" && !bodyBox.classList.contains("d-none")) {
+        options.body = bodyInput.value;
+    }
+
+    try {
+        const resp = await fetch(path, options);
+        const data = await resp.json();
+
+        statusBadge.className = resp.ok ? "badge bg-success" : "badge bg-danger";
+        statusBadge.innerText = `Status: ${resp.status} ${resp.statusText}`;
+        codeArea.innerText = JSON.stringify(data, null, 2);
+    } catch (err) {
+        statusBadge.className = "badge bg-danger";
+        statusBadge.innerText = "Network Error";
+        codeArea.innerText = `Error: ${err.message}`;
+    }
+}
+</script>
+{% endblock %}

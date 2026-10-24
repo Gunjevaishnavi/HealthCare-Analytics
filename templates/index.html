@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}Healthcare Analytics - Operational Dashboard{% endblock %}
+
+{% block content %}
+<!-- Welcome & Quick Bar -->
+<div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-3">
+    <div>
+        <h4 class="fw-bold mb-1 text-navy">
+            <i class="bi bi-grid-1x2 me-2 text-primary"></i>Healthcare Analytics & Operational Dashboard
+        </h4>
+        <div class="text-muted small">
+            De-identified Synthetic Patient Cohort Analysis | Rule-Based Risk Indicators | Operational Workload Trends
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('operational_report_view') }}" class="btn btn-sm btn-primary">
+            <i class="bi bi-file-earmark-text me-1"></i> Full Analytics Report
+        </a>
+        <a href="{{ url_for('ml_experiment_view') }}" class="btn btn-sm btn-outline-dark">
+            <i class="bi bi-cpu me-1"></i> ML Benchmark
+        </a>
+        <form method="POST" action="{{ url_for('analytics.regenerate_charts_api') }}" class="d-inline" onsubmit="return confirm('Regenerate all Matplotlib static charts?')">
+            <input type="hidden" name="dummy" value="1">
+            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Regenerate static charts">
+                <i class="bi bi-arrow-repeat"></i>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- 4 Top KPI Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="kpi-card p-3 d-flex align-items-center gap-3">
+            <div class="kpi-icon-box bg-primary-subtle text-primary">
+                <i class="bi bi-people-fill"></i>
+            </div>
+            <div>
+                <div class="text-muted small fw-semibold">Synthetic Patients</div>
+                <div class="fs-4 fw-bold text-dark">{{ report.summary.total_patients }}</div>
+                <div class="small text-muted">Across 6 age bands</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="kpi-card p-3 d-flex align-items-center gap-3">
+            <div class="kpi-icon-box bg-success-subtle text-success">
+                <i class="bi bi-hospital"></i>
+            </div>
+            <div>
+                <div class="text-muted small fw-semibold">Total Admissions / Visits</div>
+                <div class="fs-4 fw-bold text-dark">{{ report.summary.total_visits }}</div>
+                <div class="small text-muted">8 Hospital departments</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="kpi-card p-3 d-flex align-items-center gap-3">
+            <div class="kpi-icon-box bg-info-subtle text-info">
+                <i class="bi bi-activity"></i>
+            </div>
+            <div>
+                <div class="text-muted small fw-semibold">Vital Measurements</div>
+                <div class="fs-4 fw-bold text-dark">{{ report.summary.total_measurements }}</div>
+                <div class="small text-muted">Range validated</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="kpi-card p-3 d-flex align-items-center gap-3">
+            <div class="kpi-icon-box bg-warning-subtle text-warning">
+                <i class="bi bi-shield-alert"></i>
+            </div>
+            <div>
+                <div class="text-muted small fw-semibold">Multi-Indicator Flags</div>
+                <div class="fs-4 fw-bold text-dark">{{ report.summary.multi_indicator_patients }} <span class="fs-6 text-muted fw-normal">({{ report.summary.multi_indicator_pct }}%)</span></div>
+                <div class="small text-muted">Flagged for review</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Matplotlib Operational Trends & Distributions Visual Grid -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <span class="small fw-bold text-uppercase"><i class="bi bi-pie-chart me-1 text-primary"></i> Department Admissions Breakdown</span>
+                <span class="badge bg-secondary-subtle text-secondary small">Matplotlib</span>
+            </div>
+            <div class="card-body p-2 text-center">
+                <img src="{{ url_for('static', filename='charts/dept_admissions_trend.png') }}?v=1" class="img-fluid rounded" alt="Department Admissions Breakdown">
+            </div>
+            <div class="card-footer bg-white small text-muted">
+                Summarizes emergency vs outpatient admissions and departmental workloads.
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <span class="small fw-bold text-uppercase"><i class="bi bi-bar-chart-steps me-1 text-success"></i> Health Measurement Distributions</span>
+                <span class="badge bg-secondary-subtle text-secondary small">NumPy + Matplotlib</span>
+            </div>
+            <div class="card-body p-2 text-center">
+                <img src="{{ url_for('static', filename='charts/measurement_distributions.png') }}?v=1" class="img-fluid rounded" alt="Measurement Distributions">
+            </div>
+            <div class="card-footer bg-white small text-muted">
+                Histograms with green reference zones illustrating normal sample assumptions.
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <span class="small fw-bold text-uppercase"><i class="bi bi-layers-half me-1 text-warning"></i> Risk Indicator Distribution by Rule & Age</span>
+                <span class="badge bg-secondary-subtle text-secondary small">Pandas Grouping</span>
+            </div>
+            <div class="card-body p-2 text-center">
+                <img src="{{ url_for('static', filename='charts/indicator_distribution.png') }}?v=1" class="img-fluid rounded" alt="Indicator Distribution">
+            </div>
+            <div class="card-footer bg-white small text-muted">
+                Transparent rule counts and age-band cross-tabulations without clinical claims.
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <span class="small fw-bold text-uppercase"><i class="bi bi-grid-3x3 me-1 text-danger"></i> Physiological Correlation Matrix</span>
+                <span class="badge bg-secondary-subtle text-secondary small">Pandas Pearson Corr</span>
+            </div>
+            <div class="card-body p-2 text-center">
+                <img src="{{ url_for('static', filename='charts/correlation_heatmap.png') }}?v=1" class="img-fluid rounded" alt="Correlation Heatmap">
+            </div>
+            <div class="card-footer bg-white small text-muted">
+                Statistical interdependencies among vital signs and clinical biomarkers.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Transparent Rule Engine Quick Reference -->
+<div class="card mb-4">
+    <div class="card-header bg-white py-3">
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <h6 class="fw-bold mb-0 text-navy"><i class="bi bi-book me-2 text-info"></i>Transparent Rule-Based Indicators Overview</h6>
+                <small class="text-muted">Documented cutoff logic, categories, and educational rationale</small>
+            </div>
+            <a href="{{ url_for('indicators_view') }}" class="btn btn-sm btn-outline-primary">View Rule Engine</a>
+        </div>
+    </div>
+    <div class="card-body p-3">
+        <div class="row g-3">
+            {% for code, rule in rule_definitions.items() %}
+                <div class="col-md-6 col-xl">
+                    <div class="rule-item-card sev-{{ rule.severity }} h-100">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <span class="badge bg-dark fw-bold">{{ code }}</span>
+                            <span class="badge bg-secondary-subtle text-secondary small">{{ rule.category }}</span>
+                        </div>
+                        <div class="fw-semibold small text-dark mb-1">{{ rule.name }}</div>
+                        <div class="small text-muted mb-2">{{ rule.logic_description }}</div>
+                        <div class="small text-secondary fst-italic border-top pt-1">
+                            <strong>Rationale:</strong> {{ rule.rationale }}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Two Column Tables: Recent Admissions & Flagged Risk Indicators -->
+<div class="row g-4">
+    <!-- Recent Admissions -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span class="fw-bold small text-uppercase"><i class="bi bi-clock-history me-1 text-primary"></i> Recent Department Admissions</span>
+                <a href="{{ url_for('visits_view') }}" class="btn btn-sm btn-link text-decoration-none">View All</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Visit ID</th>
+                            <th>Patient ID</th>
+                            <th>Department</th>
+                            <th>Triage Type</th>
+                            <th>Visit Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in recent_visits %}
+                            <tr>
+                                <td><code>{{ v.visit_id }}</code></td>
+                                <td><a href="{{ url_for('patients_view', search=v.patient_id) }}" class="fw-semibold text-decoration-none">{{ v.patient_id }}</a></td>
+                                <td>{{ v.department_name }}</td>
+                                <td>
+                                    <span class="badge {% if v.admission_type == 'Emergency' %}bg-danger{% elif v.admission_type == 'Urgent' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                        {{ v.admission_type }}
+                                    </span>
+                                </td>
+                                <td class="small text-muted">{{ v.visit_date[:16] }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Triggered Indicators -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span class="fw-bold small text-uppercase"><i class="bi bi-shield-check me-1 text-warning"></i> Recently Triggered Risk Indicators</span>
+                <a href="{{ url_for('indicators_view') }}" class="btn btn-sm btn-link text-decoration-none">View All</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Rule</th>
+                            <th>Patient</th>
+                            <th>Category</th>
+                            <th>Trigger Rationale</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ind in recent_indicators %}
+                            <tr>
+                                <td><span class="badge bg-dark">{{ ind.rule_code }}</span></td>
+                                <td><a href="{{ url_for('patients_view', search=ind.patient_id) }}" class="fw-semibold text-decoration-none">{{ ind.patient_id }}</a></td>
+                                <td><span class="badge bg-info-subtle text-info small">{{ ind.indicator_category }}</span></td>
+                                <td class="small text-muted text-truncate" style="max-width: 200px;" title="{{ ind.rationale }}">{{ ind.rationale }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

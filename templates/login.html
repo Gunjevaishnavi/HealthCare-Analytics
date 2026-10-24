@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In - Restricted Access{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-4">
+    <div class="col-md-7 col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-header bg-navy text-white text-center py-3">
+                <div class="brand-icon mx-auto mb-2"><i class="bi bi-shield-lock-fill"></i></div>
+                <h5 class="mb-0">Restricted Access Authentication</h5>
+                <small class="text-white-50">Healthcare Data Analytics Portal</small>
+            </div>
+            <div class="card-body p-4">
+
+                <div class="alert alert-secondary py-2 small mb-3">
+                    <i class="bi bi-info-circle me-1"></i> Per acceptance criteria, access is restricted. Use the pre-configured demo credentials or an API Key below.
+                </div>
+
+                <form method="POST" action="{{ url_for('auth.login_view', next=request.args.get('next')) }}">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Username</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-person"></i></span>
+                            <input type="text" name="username" class="form-control" value="analyst" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-key"></i></span>
+                            <input type="password" name="password" class="form-control" value="Password123!" required>
+                        </div>
+                    </div>
+
+                    <div class="text-center my-3 text-muted small">— OR AUTHENTICATE VIA API KEY —</div>
+
+                    <div class="mb-4">
+                        <label class="form-label small fw-semibold">API Key</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-shield-check"></i></span>
+                            <input type="text" name="api_key" class="form-control" placeholder="e.g. health-demo-key-2026">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> Access System
+                    </button>
+                </form>
+
+                <div class="mt-4 pt-3 border-top">
+                    <div class="fw-semibold small mb-2 text-dark">Pre-configured Demo Credentials:</div>
+                    <ul class="list-group list-group-flush small">
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-1 bg-transparent">
+                            <span>Username / Password:</span>
+                            <code>analyst / Password123!</code>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-1 bg-transparent">
+                            <span>Primary API Key:</span>
+                            <code>health-demo-key-2026</code>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="card-footer bg-light text-center py-2">
+                <small class="text-muted"><i class="bi bi-exclamation-octagon me-1"></i> Synthetic data environment only. Non-clinical.</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
